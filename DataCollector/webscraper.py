@@ -48,5 +48,10 @@ class WebScraper:
 
         print("Extracting lap info...")
         # driverNames = self.driverInformationDF['Name'].tolist()
-        rawLapTimeData = parser.from_file(LAP_TIMES_URL)
-        print(rawLapTimeData['content'])
+        lap_time_data = parser.from_file(LAP_TIMES_URL)
+        lap_time_data_list = lap_time_data["content"].split("\n")
+
+        for line in lap_time_data_list:
+            split_line = line.split(" ")
+            if (len(split_line) == 3):
+                print(line, "\t", len(split_line))
