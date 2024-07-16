@@ -1,35 +1,52 @@
-import requests
+# import requests
 from tika import parser
-import re
-import pandas as pd
+# import pandas as pd
 import tabula
 
-info_url = "https://www.fia.com/sites/default/files/doc_15_-_2022_saudi_arabian_grand_prix_-_entry_list.pdf"
-lapTimes_url = "https://www.fia.com/sites/default/files/2022_02_ksa_f1_r0_timing_racelapanalysis_v01.pdf"
+DRIVER_INFO_URL = "https://www.fia.com/sites/default/files/" \
+                "doc_15_-_2022_saudi_arabian_grand_prix_-_entry_list.pdf"
+LAP_TIMES_URL = "https://www.fia.com/sites/default/files/" \
+                "2022_02_ksa_f1_r0_timing_racelapanalysis_v01.pdf"
 
 
-def extract_driver_info(info_url):
-    
-    # Extract tables from PDF
-    tables = tabula.read_pdf(info_url, pages='all', multiple_tables=True)
+class WebScraper:
 
-    # Assuming the relevant table is the first one extracted
-    dataframe = tables[0].drop([0, 1])
+    def __init__(self):
+        self.driverInformationDF = {}
 
-    dataframe = dataframe.rename(columns={'Unnamed: 0': 'Number', 'Unnamed: 1': 'Name', 'Unnamed: 2': 'Nationality', 'Unnamed: 3': 'Team', 'Unnamed: 4': 'Constructor'})
+    def extract_driver_info(self):
 
-    for i in dataframe['Number']:
-        dataframe.replace(to_replace=i, value=int(i), inplace=True)
+        # Extract tables from PDF
+        tables = tabula.read_pdf(DRIVER_INFO_URL,
+                                 pages='all',
+                                 multiple_tables=True)
 
-    dataframe = dataframe.sort_values(by=['Number'])
+        # Assuming the relevant table is the first one extracted
+        self.driverInformationDF = tables[0].drop([0, 1])
 
-    # Display the extracted table
-    # print (df.columns)
-    # print(df)
-    return dataframe
+        self.driverInformationDF = self.driverInformationDF.rename(
+            columns={'Unnamed: 0': 'Number',
+                     'Unnamed: 1': 'Name',
+                     'Unnamed: 2': 'Nationality',
+                     'Unnamed: 3': 'Team',
+                     'Unnamed: 4': 'Constructor'})
 
+        self.driverInformationDF["lapTimes"] = ""
 
-if __name__ == "__main__":
+        for i in self.driverInformationDF['Number']:
+            self.driverInformationDF.replace(to_replace=i, value=int(i),
+                                             inplace=True)
 
-    df = extract_driver_info(info_url)
-    print (df)
+        self.driverInformationDF = self.driverInformationDF.sort_values(
+            by=['Number']
+            )
+
+        # Display the extracted table
+        print(self.driverInformationDF)
+
+    def extract_lap_info(self):
+
+        print("Extracting lap info...")
+        # driverNames = self.driverInformationDF['Name'].tolist()
+        rawLapTimeData = parser.from_file(LAP_TIMES_URL)
+        print(rawLapTimeData['content'])
