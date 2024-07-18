@@ -1,7 +1,9 @@
 # import requests
 from tika import parser
-# import pandas as pd
+import numpy
 import tabula
+from datetime import datetime
+
 
 DRIVER_INFO_URL = "https://www.fia.com/sites/default/files/" \
                 "doc_15_-_2022_saudi_arabian_grand_prix_-_entry_list.pdf"
@@ -24,21 +26,19 @@ class WebScraper:
         # Assuming the relevant table is the first one extracted
         self.driverInformationDF = tables[0].drop([0, 1])
 
-        self.driverInformationDF = self.driverInformationDF.rename(
-            columns={'Unnamed: 0': 'Number',
-                     'Unnamed: 1': 'Name',
-                     'Unnamed: 2': 'Nationality',
-                     'Unnamed: 3': 'Team',
-                     'Unnamed: 4': 'Constructor'})
-        self.driverInformationDF["lapTimes"] = {}
+        self.driverInformationDF = self.driverInformationDF.rename(columns={
+            'Unnamed: 0': 'Number',
+            'Unnamed: 1': 'Name',
+            'Unnamed: 2': 'Nationality',
+            'Unnamed: 3': 'Team',
+            'Unnamed: 4': 'Constructor'})
+        self.driverInformationDF["lapTimes"] = self.driverInformationDF.apply(lambda x: [], axis=1)
+        self.driverInformationDF["pitstops"] = self.driverInformationDF.apply(lambda x: [], axis=1)
 
         for driver_number in self.driverInformationDF['Number']:
-            self.driverInformationDF.replace(to_replace=driver_number,
-                                             value=int(driver_number),
-                                             inplace=True)
+            self.driverInformationDF.replace(to_replace=driver_number, value=int(driver_number), inplace=True)
 
-        self.driverInformationDF = self.driverInformationDF. \
-            sort_values(by=['Number'])
+        self.driverInformationDF = self.driverInformationDF.sort_values(by=['Number'])
 
         # Display the extracted table
         print("\n", self.driverInformationDF)
@@ -46,34 +46,38 @@ class WebScraper:
     def extract_lap_info(self):
 
         driver_full_names = list(self.driverInformationDF["Name"])
-        # driver_surnames = []
-        # for full_name in driver_full_names:
-        #     name_list = full_name.split(" ")
-        #     driver_surnames.append(name_list[-1])
 
         print("Extracting lap info...")
         # driverNames = self.driverInformationDF['Name'].tolist()
         lap_time_data = parser.from_file(LAP_TIMES_URL)
         lap_time_data_list = lap_time_data["content"].split("\n")
 
-        temporary_lap_times = []
-        temporary_driver = ""
+        temporary_driver_index = []
         for line in lap_time_data_list:
             split_line = line.split(" ")
 
             if (len(split_line) == 3):
                 if (split_line[1] != ""):
-                    found_name = search_list_for_name(split_line[2],
-                                                      driver_full_names)
+                    found_name = search_list_for_name(split_line[2], driver_full_names)
 
-                    if found_name is not None:
-                        # if (temporary_driver != ""):
-                        self.driverInformationDF.loc[
-                            self.driverInformationDF["Name"] == found_name,
-                            'lapTimes'
-                        ] = {'lapTimes': {'laps': [4, 5, 6]}}
-                # print(split_line[0], "\t", split_line[1], "\t", split_line[2])
-        print(self.driverInformationDF)
+                    if (len(temporary_driver_index) != 0):
+                        if found_name is not None:
+                            temporary_driver_index = self.driverInformationDF.index[self.driverInformationDF["Name"] == found_name].tolist()
+
+                        elif ('p' == split_line[1].lower()):
+                            self.driverInformationDF.loc[temporary_driver_index[0], 'pitstops'].append(int(split_line[0]))
+
+                    else:
+                        temporary_driver_index = self.driverInformationDF.index[self.driverInformationDF["Name"] == found_name].tolist()
+
+                if (':' in split_line[2]):
+                    self.driverInformationDF.loc[temporary_driver_index[0], 'lapTimes'].append(split_line[2])
+                    # print(split_line[0], "\t", split_line[1], "\t", split_line[2])
+
+        print("\n", self.driverInformationDF)
+
+        for time in self.driverInformationDF.loc[18, 'lapTimes']:
+            print(time)
 
 
 def search_list_for_name(search_string, driver_names):
